@@ -60,4 +60,17 @@ CourseMate is a Retrieval-Augmented Generation (RAG)-driven virtual assistant de
     python run_query.py 'Your question here'
     ```
 
+    **Example**
+
+    ```python
+    ❯ python run_query.py 'What does Cartesian Theater Mean?'
+    Response:  According to the provided context, Cartesian Theater refers to the perceived notion that there is a place in the mind or brain where everything comes together and consciousness happens. This idea suggests that some things are 'in' the theater or stream of consciousness while others are not. However, philosopher Daniel Dennett argues that this concept, often referred to as the Cartesian theatre, does not exist as it fails to explain how objective brain activity can give rise to a stream of conscious experiences.                                                                         
+    
+    Sources: ['data/(Very Short Introductions) Susan Blackmore - Consciousness_ A Very Short Introduction-Oxford Uni.pdf:25:0', 'data/(Very Short Introduc
+    tions) Susan Blackmore - Consciousness_ A Very Short Introduction-Oxford Uni.pdf:57:1', 'data/(Very Short Introductions) Susan Blackmore - Consciousne
+    ss_ A Very Short Introduction-Oxford Uni.pdf:24:1', 'data/(Very Short Introductions) Susan Blackmore - Consciousness_ A Very Short Introduction-Oxford
+     Uni.pdf:26:0', 'data/document_98.pdf:3:1']     
+     ```        
+    
+
 
