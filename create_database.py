@@ -1,19 +1,18 @@
 import argparse
 import os
 import shutil
-from langchain.document_loaders.pdf import PyPDFDirectoryLoader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_community.document_loaders import PyPDFLoader
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.schema.document import Document
+from langchain_community.vectorstores import Chroma
 from get_embeddings import get_embeddings
-from langchain.vectorstores.chroma import Chroma
-
+from tqdm import tqdm  
 
 CHROMA_PATH = "chroma"
 DATA_PATH = "data"
 
 
 def main():
-
     parser = argparse.ArgumentParser()
     parser.add_argument("--reset", action="store_true", help="Reset the database.")
     args = parser.parse_args()
@@ -21,24 +20,43 @@ def main():
         print("✨ Clearing Database")
         clear_database()
 
-    documents = load_documents()
-    chunks = split_documents(documents)
-    add_to_chroma(chunks)
+    try:
+        documents = load_documents_one_by_one()
+        chunks = split_documents(documents)
+        add_to_chroma(chunks)
+    except Exception as e:
+        print(f"❌ Error: {e}")
 
 
-def load_documents():
-    document_loader = PyPDFDirectoryLoader(DATA_PATH)
-    return document_loader.load()
+def load_documents_one_by_one():
+    documents = []
+    for file_name in os.listdir(DATA_PATH):
+        if file_name.endswith(".pdf"):
+            file_path = os.path.join(DATA_PATH, file_name)
+            try:
+                print(f"📄 Attempting to load: {file_name}")
+                loader = PyPDFLoader(file_path)  # Initialize the loader for the specific file
+                pdf_documents = loader.load()   # Load the document
+                documents.extend(pdf_documents)
+                print(f"✅ Successfully loaded {len(pdf_documents)} pages from {file_name}.")
+            except Exception as e:
+                print(f"⚠️ Error loading {file_name}: {e}")
+    return documents
 
 
 def split_documents(documents: list[Document]):
+    if not documents:
+        print("⚠️ No documents to split.")
+        return []
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=800,
         chunk_overlap=80,
         length_function=len,
-        is_separator_regex=False,
     )
-    return text_splitter.split_documents(documents)
+    print(f"🔄 Splitting {len(documents)} documents into chunks...")
+    chunks = text_splitter.split_documents(documents)
+    print(f"✂️ Split into {len(chunks)} chunks.")
+    return chunks
 
 
 def add_to_chroma(chunks: list[Document]):
@@ -60,20 +78,23 @@ def add_to_chroma(chunks: list[Document]):
     if len(new_chunks):
         print(f"👉 Adding new documents: {len(new_chunks)}")
         new_chunk_ids = [chunk.metadata["id"] for chunk in new_chunks]
-        db.add_documents(new_chunks, ids=new_chunk_ids)
+        
+        # Use tqdm to show progress
+        for i in tqdm(range(len(new_chunks)), desc="Adding Chunks"):
+            db.add_documents([new_chunks[i]], ids=[new_chunk_ids[i]])  # Add one document at a time
+        
         db.persist()
     else:
         print("✅ No new documents to add")
 
 
 def calculate_chunk_ids(chunks):
-
     last_page_id = None
     current_chunk_index = 0
 
     for chunk in chunks:
-        source = chunk.metadata.get("source")
-        page = chunk.metadata.get("page")
+        source = chunk.metadata.get("source", "unknown")
+        page = chunk.metadata.get("page", "unknown")
         current_page_id = f"{source}:{page}"
 
         if current_page_id == last_page_id:
@@ -82,9 +103,10 @@ def calculate_chunk_ids(chunks):
             current_chunk_index = 0
 
         chunk_id = f"{current_page_id}:{current_chunk_index}"
+        chunk.metadata["id"] = chunk_id
         last_page_id = current_page_id
 
-        chunk.metadata["id"] = chunk_id
+        print(f"🔢 Assigned chunk ID: {chunk_id}")
 
     return chunks
 
